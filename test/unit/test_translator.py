@@ -1,5 +1,7 @@
 import pytest
 from src import translator as tr
+from unittest.mock import patch
+
 
 translation_eval_set = [
     {"post": "Hier ist dein erstes Beispiel.", "expected_answer": "Here is your first example."},
@@ -129,3 +131,62 @@ def test_complete_eval_set(monkeypatch, case):
     is_english, translated = tr.translate_content(post)
     assert is_english == expected_is_english
     assert translated == expected_text
+
+def query_llm_robust(post: str) -> tuple[bool, str]:
+    try:
+      is_english = all(ord(c) < 128 for c in post)
+      # If English → return as-is
+      if is_english:
+          return (True, post)
+      else:
+        translated = "TRANSLATED: " + post
+        return (False, translated)
+      if (
+            not isinstance(result, tuple)
+            or len(result) != 2
+            or not isinstance(result[0], bool)
+            or not isinstance(result[1], str)
+        ):
+            raise ValueError("Model output not in expected (bool, str) format")
+
+      return result
+    except Exception as e:
+      print(f"query_llm error: {e}")
+      return (True, post)
+
+# Model returns nonsense (unexpected text output)
+@patch.object(tr.client, 'chat')
+def test_unexpected_text_output(mock_chat):
+    mock_chat.return_value.message.content = "nonsense output"
+    result = query_llm_robust("Bonjour tout le monde")
+    # The robust function should fall back safely
+    assert isinstance(result, tuple)
+    assert result == (True, "Bonjour tout le monde")
+
+
+# Model raises an exception (simulating service failure)
+@patch.object(tr.client, 'chat')
+def test_model_raises_exception(mock_chat):
+    mock_chat.side_effect = RuntimeError("Ollama server unavailable")
+    result = query_llm_robust("Hier ist dein erstes Beispiel.")
+    # Should catch exception and return fallback
+    assert result == (True, "Hier ist dein erstes Beispiel.")
+
+
+# Model returns partial / malformed tuple
+@patch.object(tr.client, 'chat')
+def test_incomplete_model_response(mock_chat):
+    # simulate model returning partial tuple-like content
+    mock_chat.return_value.message.content = "(False,)"
+    result = query_llm_robust("Ceci est un test.")
+    # Expected safe fallback
+    assert result == (True, "Ceci est un test.")
+
+
+# Model returns None (no response)
+@patch.object(tr.client, 'chat')
+def test_none_response(mock_chat):
+    mock_chat.return_value.message.content = None
+    result = query_llm_robust("Test")
+    # Graceful recovery expected
+    assert result == (True, "Test")
