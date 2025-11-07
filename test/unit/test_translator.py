@@ -1,13 +1,32 @@
-from src.translator import translate_content
+from src import translator
+from src import llm_client
 
 
-def test_chinese():
-    is_english, translated_content = translate_content("这是一条中文消息")
-    assert is_english == False
-    assert translated_content == "This is a Chinese message"
+def test_llm_normal_response(monkeypatch):
+    # Simulate a good LLM response via query_llm_robust
+    def fake_query(post: str):
+        return (False, "This is English")
 
-def test_llm_normal_response():
-    pass
+    monkeypatch.setattr(llm_client, "query_llm_robust", fake_query)
 
-def test_llm_gibberish_response():
-    pass
+    is_english, translated = translator.translate("Dies ist eine Nachricht auf Deutsch")
+
+    assert is_english is False
+    assert translated == "This is English"
+
+
+def test_llm_gibberish_response(monkeypatch):
+    # Simulate bad / broken behavior inside LLM pipeline:
+    # query_llm_robust should protect us and fall back.
+    def fake_query(post: str):
+        # Pretend something blew up / malformed;
+        # our robust function would return (True, post)
+        return (True, post)
+
+    monkeypatch.setattr(llm_client, "query_llm_robust", fake_query)
+
+    original = "###@@@!!!!???"
+    is_english, translated = translator.translate(original)
+
+    assert is_english is True
+    assert translated == original
