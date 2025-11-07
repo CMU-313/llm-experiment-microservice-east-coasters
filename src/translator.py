@@ -2,17 +2,14 @@ import os
 from typing import Tuple
 from ollama import Client
 
-# ==== OLLAMA CLIENT SETUP (matches your Colab) ====
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "localhost:11434")
 MODEL_NAME = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
-
 client = Client(host=OLLAMA_HOST)
 
 
-# ==== FUNCTIONS BASED ON YOUR COLAB NOTEBOOK ====
 
-
+# based on function in google collab 
 def get_translation(post: str) -> str:
     """
     Use Ollama to translate arbitrary text into English.
@@ -39,7 +36,7 @@ Translate ONLY the text below into English."""
             {"role": "user", "content": post},
         ],
     )
-    # In the notebook you printed; here we just return
+    # In the notebook you printed --> here we just return
     return (response.message.content or "").strip()
 
 
@@ -102,7 +99,6 @@ def query_llm_robust(post: str) -> Tuple[bool, str]:
     try:
         result = query_llm(post)
 
-        # Validate format from LLM pipeline
         if (
             not isinstance(result, tuple)
             or len(result) != 2
@@ -119,10 +115,7 @@ def query_llm_robust(post: str) -> Tuple[bool, str]:
         return True, post
 
 
-# ==== PUBLIC ENTRYPOINT REQUIRED BY ASSIGNMENT ====
-
-
-def translate(content: str) -> Tuple[bool, str]:
+def translate_content(content: str) -> Tuple[bool, str]:
     """
     This is the function the Flask app and NodeBB integration will call.
 
