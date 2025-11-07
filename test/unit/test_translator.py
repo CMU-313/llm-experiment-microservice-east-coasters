@@ -1,32 +1,42 @@
-from src import translator
-from src import llm_client
+import pytest
+from src import translator as tr
 
 
 def test_llm_normal_response(monkeypatch):
-    # Simulate a good LLM response via query_llm_robust
-    def fake_query(post: str):
-        return (False, "This is English")
+    """
+    Verify that translate() returns correct values when the LLM behaves
+    as expected (non-English input -> translated English).
+    """
 
-    monkeypatch.setattr(llm_client, "query_llm_robust", fake_query)
+    # Mock your own helpers from this file (not other teams' code)
+    monkeypatch.setattr(tr, "get_language", lambda _txt: "German")
+    monkeypatch.setattr(tr, "get_translation", lambda _txt: "This is a German message")
 
-    is_english, translated = translator.translate("Dies ist eine Nachricht auf Deutsch")
+    is_english, translated = tr.translate("Dies ist eine Nachricht auf Deutsch")
 
     assert is_english is False
-    assert translated == "This is English"
+    assert translated == "This is a German message"
 
 
 def test_llm_gibberish_response(monkeypatch):
-    # Simulate bad / broken behavior inside LLM pipeline:
-    # query_llm_robust should protect us and fall back.
-    def fake_query(post: str):
-        # Pretend something blew up / malformed;
-        # our robust function would return (True, post)
-        return (True, post)
+    """
+    Verify that your pipeline handles a gibberish / malformed response from
+    the LLM gracefully via query_llm_robust.
 
-    monkeypatch.setattr(llm_client, "query_llm_robust", fake_query)
+    We simulate this by making query_llm return something in the wrong format.
+    query_llm_robust (called inside translate) should catch this and fall back
+    to (True, original_text).
+    """
 
-    original = "###@@@!!!!???"
-    is_english, translated = translator.translate(original)
+    def fake_query_llm(_txt):
+        # This mimics a badly formatted model result
+        return "not-a-tuple-at-all"
 
+    monkeypatch.setattr(tr, "query_llm", fake_query_llm)
+
+    original = "Bonjour tout le monde"
+    is_english, translated = tr.translate(original)
+
+    # Robust behavior: treat as English + don't crash
     assert is_english is True
     assert translated == original
