@@ -35,7 +35,6 @@ Translate ONLY the text below into English."""
             {"role": "user", "content": post},
         ],
     )
-    # In the notebook you printed --> here we just return
     return (response.message.content or "").strip()
 
 
@@ -126,17 +125,4 @@ def translate_content(content: str) -> Tuple[bool, str]:
     content = str(content).strip()
     if not content:
         return True, content
-
-    # Hardcoded demo case from README
-    hardcoded = {
-        "Dies ist eine Nachricht auf Deutsch": (
-            False,
-            "This is a German message",
-        ),
-    }
-
-    if content in hardcoded:
-        return hardcoded[content]
-
-    # Fallback to LLM-based behavior (mocked in tests, robust in prod)
     return query_llm_robust(content)
